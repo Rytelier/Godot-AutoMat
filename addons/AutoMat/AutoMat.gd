@@ -5,9 +5,12 @@ var definitions = "definitions"
 
 var filesystem = get_editor_interface().get_resource_filesystem()
 
-var pluginPanel = preload("res://addons/AutoMat/Resources/AutoMat panel.tscn").instantiate()
+var popupFilesystem : PopupMenu
+var popupWindows
+var popupAssign : Window
+var popupCreate : Window
+var popupMessage : Window
 
-var container : Control
 var overrideAssigned : CheckBox
 var texturingType : OptionButton
 var materialTypes : OptionButton
@@ -18,36 +21,54 @@ var textureDefinitions : Dictionary
 var suffixStartSymbol = "_"
 var allShaders : Array[Shader]
 
+var assignMaterialsId = 91
+var createMaterialsId = 92
+
+var message
+
 func _enter_tree():
-	add_control_to_dock(EditorPlugin.DOCK_SLOT_LEFT_UR, pluginPanel)
-	container = pluginPanel.get_node("Container")
-	overrideAssigned = container.get_node("Override")
+	popupWindows = preload("res://addons/AutoMat/Resources/AutoMat popups.tscn").instantiate()
 	
-	var autoAssignButton : Button = container.get_node("Auto assign")
+	get_editor_interface().get_window().call_deferred("add_child", popupWindows)
+	
+	popupAssign = popupWindows.get_node("Assign")
+	popupCreate = popupWindows.get_node("Create")
+	popupMessage = popupWindows.get_node("Message")
+	
+	popupAssign.hide()
+	popupCreate.hide()
+	popupMessage.hide()
+	
+	popupAssign.connect("close_requested", popupAssign.hide.bind())
+	popupCreate.connect("close_requested", popupCreate.hide.bind())
+	popupMessage.connect("close_requested", popupMessage.hide.bind())
+	
+	overrideAssigned = popupAssign.get_node("Content/Override")
+	
+	var autoAssignButton : Button = popupAssign.get_node("Content/Auto Assign")
 	
 	autoAssignButton.connect("pressed", AutoMat_Assign.bind())
 	
-	var createMaterialsButton : Button = container.get_node("Create materials")
+	var createMaterialsButton : Button = popupCreate.get_node("Content/Create materials")
 	createMaterialsButton.connect("pressed", CreateMaterialsFromSelection.bind())
 	
-	var editDefinitionsButton : Button = container.get_node("Edit definitions")
+	var editDefinitionsButton : Button = popupCreate.get_node("Content/Edit definitions")
 	editDefinitionsButton.connect("pressed", EditDefinitions.bind())
-	
-	var reloadDefinitionsButton : Button = container.get_node("Reload definitions")
-	reloadDefinitionsButton.connect("pressed", LoadTextureDefinitions.bind())
 	
 	LoadTextureDefinitions()
 	
-	materialTypes = container.get_node("Material types")
-	texturingType = container.get_node("Texturing type")
-	materialFolder = container.get_node("Material folder")
+	materialTypes = popupCreate.get_node("Content/Material types")
+	texturingType = popupCreate.get_node("Content/Texturing type")
+	materialFolder = popupCreate.get_node("Content/Material folder")
 	
 	FindAllShaders()
 	for shader in allShaders:
 		materialTypes.add_item(shader.resource_path)
+	
+	FindFilesystemPopup()
 
 func _exit_tree():
-	remove_control_from_docks(pluginPanel)
+	popupWindows.queue_free()
 
 func LoadTextureDefinitions():
 	textureDefinitionsConfig = ConfigFile.new()
@@ -61,13 +82,23 @@ func LoadTextureDefinitions():
 ##
 ##
 
+func GetSelectedMeshes() -> String:
+	var meshes = ""
+	var selected = get_selected_paths(get_filesystem_tree(self))
+	
+	for path in selected:
+		var file = load(path)
+		if file is PackedScene:
+			meshes += path + "\n"
+	
+	return meshes
+
 func AutoMat_Assign():
 	var selected = get_selected_paths(get_filesystem_tree(self))
 	
 	for path in selected:
 		var file = load(path)
 		if file is PackedScene:
-			print("[AutoMat][" + path + "]")
 			AutoAssingMaterials(load(path))
 
 func FindMaterialInProject(matName : String) -> String:
@@ -135,11 +166,13 @@ func GetAllSurfaces(node : Node) -> Array[String]:
 	return list
 
 func AutoAssingMaterials(meshFile : PackedScene):
+	message = ""
+	
 	var subresourcesLine = "_subresources="
 	
 	var scene = meshFile.instantiate()
 	var matNames = GetAllSurfaces(scene)
-	print("[AutoMat] Surface materials: " + str(matNames))
+	message += "Surface materials: " + str(matNames) + "\n"
 	
 	var matPaths : Array[String]
 	
@@ -166,7 +199,7 @@ func AutoAssingMaterials(meshFile : PackedScene):
 					if !subresourcesmats[matNames[m]]["use_external/enabled"]:
 						subresourcesmats[matNames[m]] = { "use_external/enabled": true, "use_external/path": matPaths[m] }
 					else:
-						print("[AutoMat] " + matPaths[m] + " already assigned, skipping")
+						message += matPaths[m] + " already assigned, skipping" + "\n"
 	
 	if !subresources.has("materials"):
 		subresources["materials"] = {}
@@ -178,6 +211,7 @@ func AutoAssingMaterials(meshFile : PackedScene):
 	config.save(meshFile.resource_path + ".import")
 	
 	filesystem.reimport_files([meshFile.resource_path])
+	ShowMessage(message)
 	
 	#print(config.get_value("params", "_subresources"))
 
@@ -187,11 +221,31 @@ func AutoAssingMaterials(meshFile : PackedScene):
 ##
 ##
 
-func CreateMaterialsFromSelection():
+#Just lazily copied script below... whatever
+func GetSelectedTextures():
 	var selected = get_selected_paths(get_filesystem_tree(self))
+	var materials = ""
 	
 	var completed : Array[String]
 	for file in selected:
+		if not load(file) is Texture2D: continue
+		var f = RemoveIgnoredFromName(file)
+		var simple = texturingType.selected == 1
+		var namePath = TexturePathSeparate(f, simple)
+		
+		if !completed.has(namePath[0]):
+			materials += namePath[0] + "\n"
+			completed.append(namePath[0])
+	
+	return materials
+
+func CreateMaterialsFromSelection():
+	var selected = get_selected_paths(get_filesystem_tree(self))
+	message = ""
+	
+	var completed : Array[String]
+	for file in selected:
+		if not load(file) is Texture2D: continue
 		var f = RemoveIgnoredFromName(file)
 		var simple = texturingType.selected == 1
 		var namePath = TexturePathSeparate(f, simple)
@@ -199,9 +253,13 @@ func CreateMaterialsFromSelection():
 		if !completed.has(namePath[0]):
 			var material = CreateMaterial(namePath, f, simple)
 			completed.append(namePath[0])
+	
+	popupCreate.emit_signal("close_requested")
+	ShowMessage(message)
 
 func EditDefinitions():
 	get_editor_interface().edit_resource(load("res://addons/AutoMat/texture definitions.cfg"))
+	popupCreate.emit_signal("close_requested")
 
 func CreateMaterial(namePath : Array[String], file : String, simple : bool) -> Material:
 	var material : Material
@@ -209,7 +267,7 @@ func CreateMaterial(namePath : Array[String], file : String, simple : bool) -> M
 	var matPath = "res://" + materialFolder.text + "/" + namePath[0] + ".tres"
 	
 	if FileAccess.file_exists(matPath):
-		print("[AutoMat] Material already exists: " + namePath[0])
+		message += "Material already exists: " + namePath[0] + "\n"
 		return
 	
 	match materialTypes.selected:
@@ -223,7 +281,7 @@ func CreateMaterial(namePath : Array[String], file : String, simple : bool) -> M
 			paramPath = "shader_parameter/"
 	
 	var textures : Array[Texture2D]
-	print("[AutoMat] Create material " + namePath[0])
+	message += "Create material " + namePath[0] + "\n"
 	
 	if !simple:
 		textures = GetAllTextures(namePath)
@@ -235,7 +293,7 @@ func CreateMaterial(namePath : Array[String], file : String, simple : bool) -> M
 			if textureDefinitions.has(suf):
 				var definition = textureDefinitions[suf]
 				material.set(paramPath + definition, texture)
-				print("[AutoMat] " + definition + " - param assign: " + suf + " " + texture.resource_path)
+				message += definition + " - param assign: " + suf + " " + texture.resource_path + "\n"
 				
 				#Enable parameters in base material
 				if materialTypes.selected == 0: #ORM
@@ -384,3 +442,51 @@ static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 				depths.push_back(d+1)
 
 	return res
+
+##
+##
+## Interface
+##
+##
+
+func ShowMessage(message):
+	popupMessage.show()
+	popupMessage.popup_centered()
+	popupMessage.get_node("Content/Text").text = message
+
+func FindFilesystemPopup():
+	var file_system:FileSystemDock = get_editor_interface().get_file_system_dock()
+	
+	for child in file_system.get_children():
+		# this is what we want
+		var pop:PopupMenu = child as PopupMenu
+
+		# let's check that is what we want
+		if not pop: continue
+
+		# and finally, connect the about_to_show signal. We're going to pass the Popupmenu reference too. We do this because file system clears the popup menu everytime is going to show the popup.
+		popupFilesystem = pop
+		popupFilesystem.connect("about_to_popup", AddItemToPopup.bind(pop))
+		popupFilesystem.connect("id_pressed", AssignMaterialsMenu.bind())
+		popupFilesystem.connect("id_pressed", CreateMaterialsMenu.bind())
+
+func AddItemToPopup(popup : Popup):
+	popup.add_separator("AutoMat")
+	popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('PackedScene', 'EditorIcons'), "Assign materials", assignMaterialsId)
+	popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('StandardMaterial3D', 'EditorIcons'), "Create materials", createMaterialsId)
+
+func AssignMaterialsMenu(id : int):
+	if id == assignMaterialsId:
+		var selected = GetSelectedMeshes()
+		if selected == "": return
+		popupAssign.get_node("Content/Info").text = GetSelectedMeshes()
+		popupAssign.show()
+		popupAssign.popup_centered()
+	
+func CreateMaterialsMenu(id : int):
+	if id == createMaterialsId:
+		var selected = GetSelectedTextures()
+		if selected == "": return
+		popupCreate.get_node("Content/Info").text = selected
+		popupCreate.show()
+		popupCreate.popup_centered()

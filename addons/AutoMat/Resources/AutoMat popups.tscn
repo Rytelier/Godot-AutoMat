@@ -1,0 +1,146 @@
+[gd_scene format=3 uid="uid://cj5ynvtpclyum"]
+
+[node name="AutoMat" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 1
+
+[node name="Assign" type="Window" parent="."]
+title = "AutoMat"
+size = Vector2i(256, 600)
+exclusive = true
+
+[node name="Content" type="VBoxContainer" parent="Assign"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="Assign/Content"]
+layout_mode = 2
+text = "Find and automatically assign materials in seleted imported meshes"
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Assign/Content"]
+layout_mode = 2
+
+[node name="Info" type="Label" parent="Assign/Content"]
+layout_mode = 2
+text = "[Mesh info]"
+autowrap_mode = 3
+
+[node name="Auto Assign" type="Button" parent="Assign/Content"]
+layout_mode = 2
+text = "Assign materials"
+
+[node name="Override" type="CheckBox" parent="Assign/Content"]
+layout_mode = 2
+text = "Override assigned"
+
+[node name="Create" type="Window" parent="."]
+title = "AutoMat"
+position = Vector2i(897, 0)
+size = Vector2i(256, 691)
+exclusive = true
+
+[node name="Content" type="VBoxContainer" parent="Create"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label2" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "Create materials from selected texture files, using suffixes and material params defined in texture definitions"
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Create/Content"]
+layout_mode = 2
+
+[node name="Info" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "[Textures]"
+
+[node name="Create materials" type="Button" parent="Create/Content"]
+layout_mode = 2
+text = "Create materials"
+
+[node name="Label6" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "Material texturing type
+Advanced - use suffix for shader params
+Basic - use one file for one param"
+autowrap_mode = 3
+
+[node name="Texturing type" type="OptionButton" parent="Create/Content"]
+layout_mode = 2
+item_count = 2
+selected = 0
+popup/item_0/text = "Advanced"
+popup/item_0/id = 1
+popup/item_1/text = "Basic"
+popup/item_1/id = 0
+
+[node name="Label5" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "Material type"
+autowrap_mode = 3
+
+[node name="Material types" type="OptionButton" parent="Create/Content"]
+layout_mode = 2
+item_count = 2
+selected = 0
+popup/item_0/text = "ORM material"
+popup/item_0/id = 1
+popup/item_1/text = "Standard material"
+popup/item_1/id = 0
+
+[node name="Label4" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "Materials folder to save generated materials"
+autowrap_mode = 3
+
+[node name="Material folder" type="LineEdit" parent="Create/Content"]
+layout_mode = 2
+text = "materials"
+caret_blink = true
+caret_blink_interval = 0.5
+
+[node name="HSeparator3" type="HSeparator" parent="Create/Content"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="Label3" type="Label" parent="Create/Content"]
+layout_mode = 2
+text = "Texture definitions
+format: \"file suffix\": \"shader param id\"
+\"Ignore\" will make certain parts ignored after main suffix"
+autowrap_mode = 3
+
+[node name="Edit definitions" type="Button" parent="Create/Content"]
+layout_mode = 2
+text = "Edit"
+
+[node name="Message" type="Window" parent="."]
+title = "AutoMat"
+position = Vector2i(277, 0)
+size = Vector2i(600, 500)
+exclusive = true
+
+[node name="Content" type="ScrollContainer" parent="Message"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Text" type="Label" parent="Message/Content"]
+custom_minimum_size = Vector2(0, 4.011)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "Message"
+autowrap_mode = 3
