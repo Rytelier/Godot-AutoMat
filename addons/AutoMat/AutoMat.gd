@@ -100,6 +100,7 @@ func AutoMat_Assign():
 		var file = load(path)
 		if file is PackedScene:
 			AutoAssingMaterials(load(path))
+	popupAssign.emit_signal("close_requested")
 
 func FindMaterialInProject(matName : String) -> String:
 	var possibleNames : Array[String]
