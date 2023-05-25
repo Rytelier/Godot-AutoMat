@@ -100,6 +100,7 @@ func AutoMat_Assign():
 		var file = load(path)
 		if file is PackedScene:
 			AutoAssingMaterials(load(path))
+	popupAssign.emit_signal("close_requested")
 
 func FindMaterialInProject(matName : String) -> String:
 	var possibleNames : Array[String]
@@ -479,7 +480,7 @@ func AssignMaterialsMenu(id : int):
 	if id == assignMaterialsId:
 		var selected = GetSelectedMeshes()
 		if selected == "": return
-		popupAssign.get_node("Content/Info").text = GetSelectedMeshes()
+		popupAssign.get_node("Content/ScrollContainer/Info").text = GetSelectedMeshes()
 		popupAssign.show()
 		popupAssign.popup_centered()
 	
