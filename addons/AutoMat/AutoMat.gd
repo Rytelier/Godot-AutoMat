@@ -29,7 +29,7 @@ var message
 func _enter_tree():
 	popupWindows = preload("res://addons/AutoMat/Resources/AutoMat popups.tscn").instantiate()
 	
-	get_editor_interface().get_window().call_deferred("add_child", popupWindows)
+	get_editor_interface().get_editor_main_screen().get_window().call_deferred("add_child", popupWindows)
 	
 	popupAssign = popupWindows.get_node("Assign")
 	popupCreate = popupWindows.get_node("Create")
