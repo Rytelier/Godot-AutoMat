@@ -43,23 +43,23 @@ func _enter_tree():
 	popupCreate.connect("close_requested", popupCreate.hide.bind())
 	popupMessage.connect("close_requested", popupMessage.hide.bind())
 	
-	overrideAssigned = popupAssign.get_node("Content/Override")
+	overrideAssigned = popupAssign.find_child("Override")
 	
-	var autoAssignButton : Button = popupAssign.get_node("Content/Auto Assign")
+	var autoAssignButton : Button = popupAssign.find_child("Auto Assign")
 	
 	autoAssignButton.connect("pressed", AutoMat_Assign.bind())
 	
-	var createMaterialsButton : Button = popupCreate.get_node("Content/Create materials")
+	var createMaterialsButton : Button = popupCreate.find_child("Create materials")
 	createMaterialsButton.connect("pressed", CreateMaterialsFromSelection.bind())
 	
-	var editDefinitionsButton : Button = popupCreate.get_node("Content/Edit definitions")
+	var editDefinitionsButton : Button = popupCreate.find_child("Edit definitions")
 	editDefinitionsButton.connect("pressed", EditDefinitions.bind())
 	
 	LoadTextureDefinitions()
 	
-	materialTypes = popupCreate.get_node("Content/Material types")
-	texturingType = popupCreate.get_node("Content/Texturing type")
-	materialFolder = popupCreate.get_node("Content/Material folder")
+	materialTypes = popupCreate.find_child("Material types")
+	texturingType = popupCreate.find_child("Texturing type")
+	materialFolder = popupCreate.find_child("Material folder")
 	
 	FindAllShaders()
 	for shader in allShaders:
@@ -453,7 +453,7 @@ static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 func ShowMessage(message):
 	popupMessage.show()
 	popupMessage.popup_centered()
-	popupMessage.get_node("Content/Text").text = message
+	popupMessage.find_child("Text").text = message
 
 func FindFilesystemPopup():
 	var file_system:FileSystemDock = get_editor_interface().get_file_system_dock()
@@ -480,7 +480,7 @@ func AssignMaterialsMenu(id : int):
 	if id == assignMaterialsId:
 		var selected = GetSelectedMeshes()
 		if selected == "": return
-		popupAssign.get_node("Content/ScrollContainer/Info").text = GetSelectedMeshes()
+		popupAssign.find_child("Info").text = GetSelectedMeshes()
 		popupAssign.show()
 		popupAssign.popup_centered()
 	
@@ -488,6 +488,6 @@ func CreateMaterialsMenu(id : int):
 	if id == createMaterialsId:
 		var selected = GetSelectedTextures()
 		if selected == "": return
-		popupCreate.get_node("Content/Info").text = selected
+		popupCreate.find_child("Info").text = selected
 		popupCreate.show()
 		popupCreate.popup_centered()
