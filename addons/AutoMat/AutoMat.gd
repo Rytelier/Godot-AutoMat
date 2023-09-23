@@ -18,7 +18,7 @@ var materialFolder : LineEdit
 
 var textureDefinitionsConfig : ConfigFile
 var textureDefinitions : Dictionary
-var suffixStartSymbol = "_"
+var suffixStartSymbols = ["_"]
 var allShaders : Array[Shader]
 
 var assignMaterialsId = 91
@@ -74,7 +74,7 @@ func LoadTextureDefinitions():
 	textureDefinitionsConfig = ConfigFile.new()
 	textureDefinitionsConfig.load("res://addons/AutoMat/texture definitions.cfg")
 	textureDefinitions = textureDefinitionsConfig.get_value(definitions, "suffix-param")
-	suffixStartSymbol = textureDefinitionsConfig.get_value(definitions, "suffix_start_symbol")
+	suffixStartSymbols = textureDefinitionsConfig.get_value(definitions, "suffix_start_symbols")
 
 ##
 ##
@@ -323,15 +323,22 @@ func TexturePathSeparate(path : String, simple : bool) -> Array[String]:
 	var file = path.substr(fileStart+1)
 	var fileName = file.split(".")[0]
 	if !simple:
-		var lastSymbol = fileName.rfind(suffixStartSymbol)
-		fileName = fileName.replace(fileName.substr(lastSymbol), "")
+		for suff in suffixStartSymbols:
+			var lastSymbol = fileName.rfind(suff)
+			if lastSymbol == -1: continue
+			fileName = fileName.replace(fileName.substr(lastSymbol), "")
 	
 	var folderPath = path.replace(file, "")
 	
 	return [fileName, folderPath]
 
 func GetSuffix(file : String) -> String:
-	var s = file.rfind(suffixStartSymbol)
+	var s = ""
+	var found = ""
+	for suff in suffixStartSymbols:
+		found = file.rfind(suff)
+		if found == -1: continue
+		s = found
 	
 	return file.substr(s+1).to_lower()
 
@@ -342,16 +349,17 @@ func GetAllTextures(namePath : Array[String]) -> Array[Texture2D]:
 	var dir = DirAccess.open(namePath[1])
 	var files = dir.get_files()
 	for file in files:
-		var fname = RemoveIgnoredFromName(file)
-		fname = fname.split(".")[0]
-		fname = fname.to_lower()
-		var s = fname.substr(fname.rfind(suffixStartSymbol + GetSuffix(fname)))
-		fname = fname.replace(s, "")
+		for suff in suffixStartSymbols:
+			var fname = RemoveIgnoredFromName(file)
+			fname = fname.split(".")[0]
+			fname = fname.to_lower()
+			var s = fname.substr(fname.rfind(suff + GetSuffix(fname)))
+			fname = fname.replace(s, "")
 
-		if fname == namePath[0].to_lower() and !file.ends_with(".import"):
-			var texture = load(namePath[1] + file)
-			if texture is Texture2D:
-				textures.append(texture)
+			if fname == namePath[0].to_lower() and !file.ends_with(".import"):
+				var texture = load(namePath[1] + file)
+				if texture is Texture2D:
+					textures.append(texture)
 	
 	return textures
 
@@ -376,8 +384,9 @@ func RemoveIgnoredFromName(name : String) -> String:
 	var ignored = textureDefinitionsConfig.get_value(definitions, "ignore")
 	
 	for part in ignored:
-		if nameIgnored.contains(suffixStartSymbol + part + suffixStartSymbol) or nameIgnored.contains(suffixStartSymbol + part + ".") or nameIgnored.ends_with(suffixStartSymbol + part):
-			nameIgnored = nameIgnored.replace(suffixStartSymbol + part, "")
+		for suff in suffixStartSymbols:
+			if nameIgnored.contains(suff + part + suff) or nameIgnored.contains(suff + part + ".") or nameIgnored.ends_with(suff + part):
+				nameIgnored = nameIgnored.replace(suff + part, "")
 	
 	return nameIgnored
 
