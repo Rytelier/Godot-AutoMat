@@ -484,7 +484,7 @@ static func get_selected_paths_grid(fs_list:ItemList)->Array:
 	var sel_items: = grid_get_selected_items(fs_list)
 	var result: = []
 	for i in sel_items:
-		result.push_back(fs_list.get_item_metadata(1))
+		result.push_back(fs_list.get_item_metadata(i))
 	return result
 
 static func get_filesystem_tree(plugin:EditorPlugin)->Tree:
