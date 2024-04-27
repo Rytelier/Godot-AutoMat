@@ -10,6 +10,7 @@ var popupWindows
 var popupAssign : Window
 var popupCreate : Window
 var popupMessage : Window
+var filesystemIsSplit = false
 
 var overrideAssigned : CheckBox
 var texturingType : OptionButton
@@ -87,7 +88,7 @@ func LoadTextureDefinitions():
 
 func GetSelectedMeshes() -> String:
 	var meshes = ""
-	var selected = get_selected_paths(get_filesystem_tree(self))
+	var selected = get_selected_paths(get_filesystem_tree(self), get_filesystem_grid(self))
 	
 	for path in selected:
 		if not FileAccess.file_exists(path): continue
@@ -98,7 +99,7 @@ func GetSelectedMeshes() -> String:
 	return meshes
 
 func AutoMat_Assign():
-	var selected = get_selected_paths(get_filesystem_tree(self))
+	var selected = get_selected_paths(get_filesystem_tree(self), get_filesystem_grid(self))
 	
 	for path in selected:
 		var file = load(path)
@@ -228,7 +229,7 @@ func AutoAssingMaterials(meshFile : PackedScene):
 
 #Just lazily copied script below... whatever
 func GetSelectedTextures():
-	var selected = get_selected_paths(get_filesystem_tree(self))
+	var selected = get_selected_paths(get_filesystem_tree(self), get_filesystem_grid(self))
 	var materials = ""
 	
 	var completed : Array[String]
@@ -246,7 +247,7 @@ func GetSelectedTextures():
 	return materials
 
 func CreateMaterialsFromSelection():
-	var selected = get_selected_paths(get_filesystem_tree(self))
+	var selected = get_selected_paths(get_filesystem_tree(self), get_filesystem_grid(self))
 	message = ""
 	
 	var completed : Array[String]
@@ -465,7 +466,13 @@ func ExportAnimationClips(path : String):
 ##
 
 #https://github.com/me2beats/asset-dropper/blob/main/addons/asset-dropper/utils.gd
-static func get_selected_paths(fs_tree:Tree)->Array:
+static func get_selected_paths(fs_tree:Tree, fs_grid:ItemList)->Array:
+	if fs_grid != null:
+		return get_selected_paths_grid(fs_grid)
+	else:
+		return get_selected_paths_tree(fs_tree)
+
+static func get_selected_paths_tree(fs_tree:Tree)->Array:
 	var sel_items: = tree_get_selected_items(fs_tree)
 	var result: = []
 	for i in sel_items:
@@ -473,10 +480,26 @@ static func get_selected_paths(fs_tree:Tree)->Array:
 		result.push_back(i.get_metadata(0))
 	return result
 
+static func get_selected_paths_grid(fs_list:ItemList)->Array:
+	var sel_items: = grid_get_selected_items(fs_list)
+	var result: = []
+	for i in sel_items:
+		result.push_back(fs_list.get_item_metadata(1))
+	return result
+
 static func get_filesystem_tree(plugin:EditorPlugin)->Tree:
 	var dock = plugin.get_editor_interface().get_file_system_dock()
 	return find_node_by_class_path(dock, ['SplitContainer','Tree']) as Tree
 
+static func get_filesystem_grid(plugin:EditorPlugin)->ItemList:
+	var dock = plugin.get_editor_interface().get_file_system_dock()
+	var grid = find_node_by_class_path(dock, ['SplitContainer','VBoxContainer','FileSystemList']) as ItemList
+	if grid == null:
+		return null
+	if grid.get_parent().visible:
+		return grid
+	else:
+		return null
 
 #get all selected items
 static func tree_get_selected_items(tree:Tree)->Array:
@@ -487,6 +510,9 @@ static func tree_get_selected_items(tree:Tree)->Array:
 		res.push_back(item)
 		item = tree.get_next_selected(item)
 	return res
+	
+static func grid_get_selected_items(list:ItemList)->Array:
+	return list.get_selected_items()
 
 static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 	var res:Node
@@ -495,7 +521,7 @@ static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 	var depths = []
 
 	var first = class_path[0]
-	for c in node.get_children():
+	for c in node.get_children(true):
 		if c.get_class() == first:
 			stack.push_back(c)
 			depths.push_back(0)
@@ -507,7 +533,7 @@ static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 	while stack:
 		var d = depths.pop_back()
 		var n = stack.pop_back()
-
+		
 		if d>max_:
 			continue
 		if n.get_class() == class_path[d]:
@@ -515,7 +541,7 @@ static func find_node_by_class_path(node:Node, class_path:Array)->Node:
 				res = n
 				return res
 
-			for c in n.get_children():
+			for c in n.get_children(true):
 				stack.push_back(c)
 				depths.push_back(d+1)
 
