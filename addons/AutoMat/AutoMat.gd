@@ -23,6 +23,9 @@ var allShaders : Array[Shader]
 
 var assignMaterialsId = 91
 var createMaterialsId = 92
+var exportAnimationClipsId = 93
+
+var animationClipTemplateFile : ConfigFile
 
 var message
 
@@ -72,7 +75,7 @@ func _exit_tree():
 
 func LoadTextureDefinitions():
 	textureDefinitionsConfig = ConfigFile.new()
-	textureDefinitionsConfig.load("res://addons/AutoMat/texture definitions.cfg")
+	textureDefinitionsConfig.load("res://addons/AutoMat/definitions.cfg")
 	textureDefinitions = textureDefinitionsConfig.get_value(definitions, "suffix-param")
 	suffixStartSymbols = textureDefinitionsConfig.get_value(definitions, "suffix_start_symbols")
 
@@ -87,6 +90,7 @@ func GetSelectedMeshes() -> String:
 	var selected = get_selected_paths(get_filesystem_tree(self))
 	
 	for path in selected:
+		if not FileAccess.file_exists(path): continue
 		var file = load(path)
 		if file is PackedScene:
 			meshes += path + "\n"
@@ -229,6 +233,7 @@ func GetSelectedTextures():
 	
 	var completed : Array[String]
 	for file in selected:
+		if not FileAccess.file_exists(file): continue
 		if not load(file) is Texture2D: continue
 		var f = RemoveIgnoredFromName(file)
 		var simple = texturingType.selected == 1
@@ -259,7 +264,7 @@ func CreateMaterialsFromSelection():
 	ShowMessage(message)
 
 func EditDefinitions():
-	get_editor_interface().edit_resource(load("res://addons/AutoMat/texture definitions.cfg"))
+	get_editor_interface().edit_resource(load("res://addons/AutoMat/definitions.cfg"))
 	popupCreate.emit_signal("close_requested")
 
 func CreateMaterial(namePath : Array[String], file : String, simple : bool) -> Material:
@@ -392,6 +397,69 @@ func RemoveIgnoredFromName(name : String) -> String:
 
 ##
 ##
+#Animation clips
+##
+##
+
+func IsImportedMesh(fileName : String) -> bool:
+	var extensions = textureDefinitionsConfig.get_value(definitions, "meshExtensions")
+	for ext in extensions:
+		if fileName.to_lower().strip_edges().ends_with("."+ext):
+			return true
+	return false
+
+func GetAnimationClips(meshFile : PackedScene) -> PackedStringArray:
+	var animPlayer : AnimationPlayer
+	var node = meshFile.instantiate()
+	for child in node.get_children():
+		if child is AnimationPlayer:
+			animPlayer = child
+			break
+	if animPlayer != null:
+		return animPlayer.get_animation_list()
+	
+	return []
+
+func ExportAnimationClips(path : String):
+	path = path.strip_edges()
+	var meshFile = load(path)
+	var importFile : ConfigFile = ConfigFile.new()
+	var clips = GetAnimationClips(meshFile)
+	importFile.load(path + ".import")
+	
+	var clipTemplate : ConfigFile = ConfigFile.new()
+	clipTemplate.load("res://addons/AutoMat/Resources/Animation clip template.txt")
+	
+	var pathSplit = path.split("/")
+	var pathFile = pathSplit[pathSplit.size()-1]
+	var pathFolder = path.replace(pathFile, "")
+	
+	var pathClips = pathFolder + pathFile + "_animations"
+	
+	prints(pathFile, pathFolder, pathClips)
+	
+	if not DirAccess.dir_exists_absolute(pathClips):
+		DirAccess.make_dir_absolute(pathClips)
+	
+	var subresources : Dictionary = importFile.get_value("params", "_subresources", null)
+	if subresources == null: subresources = {}
+		
+	var anims : Dictionary = subresources["animations"].duplicate(true)
+	for clip in clips:
+		if anims.has(clip): continue
+		
+		print("[AutoMat] Exported clip: " + clip)
+		var tmp = clipTemplate.get_value("AnimClipTemplate", "AnimClipTemplate")["Clip"].duplicate(true)
+		tmp["save_to_file/path"] = pathClips + "/" + clip + ".res"
+		anims[clip] = tmp.duplicate(true)
+	subresources["animations"] = anims.duplicate(true)
+	
+	importFile.set_value("params", "_subresources", subresources)
+	importFile.save(path + ".import")
+	filesystem.reimport_files([path])
+
+##
+##
 #Get selected files
 ##
 ##
@@ -479,11 +547,17 @@ func FindFilesystemPopup():
 		popupFilesystem.connect("about_to_popup", AddItemToPopup.bind(pop))
 		popupFilesystem.connect("id_pressed", AssignMaterialsMenu.bind())
 		popupFilesystem.connect("id_pressed", CreateMaterialsMenu.bind())
+		popupFilesystem.connect("id_pressed", ExportAnimationClipsMenu.bind())
 
 func AddItemToPopup(popup : Popup):
 	popup.add_separator("AutoMat")
-	popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('PackedScene', 'EditorIcons'), "Assign materials", assignMaterialsId)
+	
+	var selected = GetSelectedMeshes()
+	
 	popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('StandardMaterial3D', 'EditorIcons'), "Create materials", createMaterialsId)
+	if IsImportedMesh(selected):
+		popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('PackedScene', 'EditorIcons'), "Assign materials", assignMaterialsId)
+		popup.add_icon_item(get_editor_interface().get_base_control().get_theme_icon('Animation', 'EditorIcons'), "Export animation clips", exportAnimationClipsId)
 
 func AssignMaterialsMenu(id : int):
 	if id == assignMaterialsId:
@@ -500,3 +574,9 @@ func CreateMaterialsMenu(id : int):
 		popupCreate.find_child("Info").text = selected
 		popupCreate.show()
 		popupCreate.popup_centered()
+
+func ExportAnimationClipsMenu(id : int):
+	if id == exportAnimationClipsId:
+		var selected = GetSelectedMeshes()
+		if selected == "": return
+		ExportAnimationClips(selected)
